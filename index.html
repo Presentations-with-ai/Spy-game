@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+  <title>Шпион</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #111827;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 22px 0 40px;
+    }
+    .page { width: min(92vw, 460px); }
+    .card {
+      position: relative;
+      z-index: 2;
+      background: #ffffff;
+      width: 100%;
+      padding: clamp(18px, 4vw, 24px);
+      border-radius: 20px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.20);
+      animation: fade .35s ease;
+      text-align: center;
+      color: #111827;
+    }
+    @keyframes fade { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+    .topBar { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:16px; }
+    h1 { margin: 0; font-size: 26px; line-height: 1.15; letter-spacing: -0.6px; text-align:left; }
+    h2 { margin:0 0 8px; font-size:22px; line-height:1.16; letter-spacing:-.4px; text-align:left; }
+    p { margin:0; }
+    .userBox {
+      flex: 0 0 auto;
+      max-width: 150px;
+      border: 1px solid #e5e7eb;
+      background: #f9fafb;
+      color: #111827;
+      border-radius: 14px;
+      padding: 9px 10px;
+      text-align:right;
+    }
+    .userBox b { display:block; font-size:13px; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .userBox span { display:block; margin-top:2px; font-size:10px; color:#6b7280; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .screen { display:none; }
+    .screen.active { display:block; animation:fade .28s ease; }
+    .search { display: grid; gap: 10px; }
+    input {
+      width: 100%;
+      border: 1px solid #e5e7eb;
+      outline: none;
+      background: #f9fafb;
+      color: #111827;
+      border-radius: 16px;
+      padding: 15px 14px;
+      font-size: 16px;
+      font-weight: 650;
+      transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+    input:focus { border-color: #7c3aed; background:#fff; box-shadow: 0 0 0 4px rgba(124,58,237,.13); }
+    input::placeholder { color: #9ca3af; font-weight: 600; }
+    .roomid { text-align:center; font-size:20px; letter-spacing:.12em; font-weight:900; }
+    .actions { display:grid; grid-template-columns: 1fr; gap: 10px; margin-top:12px; }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    button {
+      width: 100%;
+      border: none;
+      border-radius: 16px;
+      padding: 15px 16px;
+      background: linear-gradient(135deg, #4338ca 0%, #7c3aed 100%);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 12px 28px rgba(79,70,229,.26);
+      transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
+    }
+    button:hover { filter: brightness(1.04); box-shadow: 0 15px 30px rgba(91,33,182,.28); }
+    button:active { transform: scale(.98); }
+    button:disabled { opacity: .65; cursor: not-allowed; }
+    .groupBtn, .ghost {
+      background: #ffffff;
+      color: #4f46e5;
+      border: 1px solid rgba(99,102,241,.24);
+      box-shadow: 0 10px 22px rgba(0,0,0,.10);
+    }
+    .danger { background:#fff1f2; color:#e11d48; border:1px solid #ffe4e6; box-shadow:0 10px 22px rgba(225,29,72,.10); }
+    .good { background:linear-gradient(135deg,#059669 0%,#10b981 100%); box-shadow:0 12px 28px rgba(5,150,105,.22); }
+    .miniStats { display:grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+    .mini { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 14px; padding: 10px 6px; }
+    .mini b { display:block; font-size: 16px; color:#111827; }
+    .mini span { display:block; margin-top: 2px; font-size: 10px; color:#6b7280; font-weight:700; }
+    .results { display: grid; gap: 12px; margin-top: 14px; }
+    .resultCard {
+      background: #ffffff;
+      border-radius: 20px;
+      padding: 16px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.16);
+      color:#111827;
+      animation: fade .28s ease;
+    }
+    .empty { text-align:center; color:#6b7280; font-weight:650; }
+    .studentTop { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+    .studentName { text-align:left; font-weight:900; line-height:1.18; font-size:17px; letter-spacing:-.2px; }
+    .studentMeta { text-align:left; margin-top:5px; color:#6b7280; font-size:12px; font-weight:700; }
+    .rank {
+      min-width: 86px;
+      flex: 0 0 auto;
+      border-radius: 15px;
+      background: #eef2ff;
+      color: #4f46e5;
+      border: 1px solid rgba(99,102,241,.18);
+      padding: 9px 8px;
+      text-align: center;
+      font-weight: 900;
+    }
+    .rank b { display:block; font-size: 19px; line-height:1; }
+    .rank span { display:block; margin-top:3px; font-size:10px; color:#6366f1; }
+    .grid { display:grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 12px; }
+    .cell { background:#f9fafb; border:1px solid #e5e7eb; border-radius:14px; padding:11px 10px; }
+    .cell span { display:block; font-size:10px; color:#6b7280; font-weight:800; margin-bottom:4px; }
+    .cell b { display:block; font-size:15px; color:#111827; }
+    .players { display:grid; gap:10px; margin-top:12px; }
+    .player {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      cursor:default;
+      border: 1px solid rgba(255,255,255,.01);
+      text-align:left;
+      background:#ffffff;
+      border-radius:20px;
+      padding:14px 16px;
+      box-shadow:0 12px 30px rgba(0,0,0,.12);
+      color:#111827;
+    }
+    .playerName { font-size:16px; font-weight:900; color:#111827; line-height:1.1; max-width:230px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .playerMeta { margin-top:5px; color:#6b7280; font-size:12px; font-weight:800; }
+    .pill {
+      flex: 0 0 auto;
+      border-radius: 14px;
+      padding: 10px 12px;
+      min-width: 72px;
+      background:#eef2ff;
+      color:#4f46e5;
+      text-align:center;
+      font-size:13px;
+      font-weight:900;
+      border: 1px solid rgba(99,102,241,.18);
+    }
+    .pill.ready { background:#ecfdf5; color:#059669; border-color:#bbf7d0; }
+    .pill.wait { background:#fffbeb; color:#d97706; border-color:#fde68a; }
+    .muted { text-align:left; color:#6b7280; font-size:13px; line-height:1.45; font-weight:650; }
+    .notice { background:#f9fafb; border:1px solid #e5e7eb; border-radius:16px; padding:12px 14px; color:#6b7280; font-size:13px; font-weight:700; line-height:1.45; text-align:left; margin-top:12px; }
+    .bigId { font-size:34px; font-weight:950; letter-spacing:.08em; text-align:left; color:#111827; line-height:1; }
+    .timer { font-size:46px; font-weight:950; letter-spacing:-.06em; text-align:center; color:#111827; margin:14px 0 4px; }
+    .wordCard { background:#f9fafb; border:1px solid #e5e7eb; border-radius:20px; padding:22px 14px; margin-top:12px; }
+    .role { font-size:10px; color:#6b7280; font-weight:900; letter-spacing:.18em; text-transform:uppercase; }
+    .word { margin-top:8px; font-size:38px; font-weight:950; letter-spacing:-.06em; color:#111827; line-height:1.05; }
+    .spyWord { color:#e11d48; }
+    .toast { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); width:min(92vw,420px); display:none; z-index:20; background:#111827; color:#fff; border-radius:16px; padding:13px 14px; box-shadow:0 12px 30px rgba(0,0,0,.22); font-size:14px; font-weight:750; text-align:center; }
+    .toast.show { display:block; animation:fade .2s ease; }
+    .settingsLink { margin-top:12px; font-size:12px; color:#6b7280; font-weight:800; text-align:center; text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+    @media (max-width: 420px) {
+      body { padding-top: 14px; }
+      .page { width: min(92vw, 390px); }
+      .card, .resultCard, .player { border-radius: 18px; }
+      h1 { font-size: 22px; }
+      .userBox { max-width: 138px; padding: 8px 9px; }
+      .studentTop { display:block; }
+      .rank { margin-top: 10px; display:inline-block; }
+      .miniStats { grid-template-columns: 1fr 1fr 1fr; }
+      .grid { grid-template-columns: 1fr; }
+      .row { grid-template-columns:1fr; }
+      .bigId { font-size:30px; }
+      .timer { font-size:42px; }
+      .word { font-size:34px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="card">
+      <div class="topBar">
+        <h1>Игра шпион</h1>
+        <div class="userBox"><b id="uName">Игрок</b><span>ID: <em id="uId">---</em></span></div>
+      </div>
+
+      <div id="setup" class="screen">
+        <h2>Сервер</h2>
+        <p class="muted">Вставь адрес сервера игры.</p>
+        <div class="search" style="margin-top:12px">
+          <input id="apiInput" placeholder="https://server.com">
+          <button onclick="saveApiUrl()">Сохранить</button>
+          <button class="ghost" onclick="useCurrentOrigin()">Этот домен</button>
+        </div>
+      </div>
+
+      <div id="home" class="screen active">
+        <div class="search">
+          <button onclick="createRoom()">Создать комнату</button>
+          <button class="groupBtn" onclick="showFind()">Найти комнату</button>
+        </div>
+        <div class="miniStats">
+          <div class="mini"><b>7</b><span>ЦИФР ID</span></div>
+          <div class="mini"><b>3+</b><span>ИГРОКОВ</span></div>
+          <div class="mini"><b>2:00</b><span>ТАЙМЕР</span></div>
+        </div>
+        <div class="settingsLink" onclick="showSetup()">Настройки сервера</div>
+      </div>
+
+      <div id="find" class="screen">
+        <h2>Найти комнату</h2>
+        <div class="search" style="margin-top:12px">
+          <input id="roomInput" class="roomid" inputmode="numeric" maxlength="7" placeholder="1234567">
+          <button onclick="joinFromInput()">Войти</button>
+          <button class="ghost" onclick="goHome()">Назад</button>
+        </div>
+      </div>
+
+      <div id="room" class="screen">
+        <div id="roomPanel"></div>
+      </div>
+    </section>
+
+    <section class="results" id="extraResults"></section>
+  </main>
+  <div id="toast" class="toast"></div>
+
+<script>
+  const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+  const DEFAULT_API_URL = "";
+  const BOT_USERNAME = "";
+
+  let API = "";
+  let me = null;
+  let currentRoom = localStorage.getItem("spy_room_id") || "";
+  let poll = null;
+  let lastRendered = "";
+
+  function initUser(){
+    if(tg){
+      tg.ready();
+      tg.expand();
+      const u = (tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : null;
+      if(u){ me = {id:String(u.id), first_name:u.first_name||"Игрок", last_name:u.last_name||"", username:u.username||""}; }
+    }
+    if(!me){
+      let saved = localStorage.getItem("spy_guest_user");
+      if(saved){ try{ me = JSON.parse(saved); }catch(e){} }
+      if(!me){
+        me = {id:"guest_" + Math.floor(100000 + Math.random()*900000), first_name:"Гость", last_name:"", username:""};
+        localStorage.setItem("spy_guest_user", JSON.stringify(me));
+      }
+    }
+    const fullName = ((me.first_name||"Игрок") + (me.last_name ? " " + me.last_name : "")).trim();
+    document.getElementById("uName").textContent = fullName;
+    document.getElementById("uId").textContent = me.id;
+  }
+
+  function getQuery(){ return new URLSearchParams(location.search); }
+  function cleanRoom(v){ return String(v||"").replace(/\D/g,"").slice(0,7); }
+  function cleanApiUrl(v){ return String(v||"").trim().replace(/\/+$/, ""); }
+
+  function initApi(){
+    const q = getQuery();
+    const fromUrl = cleanApiUrl(q.get("api") || "");
+    if(fromUrl){ localStorage.setItem("spy_api_url", fromUrl); }
+    API = cleanApiUrl(fromUrl || localStorage.getItem("spy_api_url") || DEFAULT_API_URL || "");
+    const isLocalServer = location.protocol === "http:" && ["localhost","127.0.0.1"].includes(location.hostname);
+    if(!API && isLocalServer) API = location.origin;
+    document.getElementById("apiInput").value = API;
+  }
+
+  function getStartRoom(){
+    const q = getQuery();
+    const fromUrl = q.get("room") || q.get("startapp") || q.get("start") || "";
+    const fromHash = (location.hash || "").replace(/[^0-9]/g, "");
+    const fromTg = tg && tg.initDataUnsafe ? (tg.initDataUnsafe.start_param || "") : "";
+    return cleanRoom(fromUrl || fromHash || fromTg);
+  }
+
+  function show(id){ document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active")); document.getElementById(id).classList.add("active"); }
+  function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),2400); }
+  function showSetup(){ show("setup"); setTimeout(()=>document.getElementById("apiInput").focus(),100); }
+  function goHome(){ stopPoll(); if(!currentRoom) show("home"); else show("home"); }
+  function showFind(){ if(!ensureApi()) return; show("find"); setTimeout(()=>document.getElementById("roomInput").focus(),100); }
+  function useCurrentOrigin(){ document.getElementById("apiInput").value = location.origin; saveApiUrl(); }
+
+  async function saveApiUrl(){
+    const v = cleanApiUrl(document.getElementById("apiInput").value);
+    if(!v || !/^https?:\/\//i.test(v)){ toast("Вставь адрес с http или https"); return; }
+    API = v;
+    localStorage.setItem("spy_api_url", API);
+    try{ await pingServer(); toast("Сохранено"); show("home"); }
+    catch(e){ toast("Сохранено, но сервер не отвечает"); show("home"); }
+  }
+
+  function ensureApi(){
+    if(API) return true;
+    showSetup();
+    toast("Укажи сервер");
+    return false;
+  }
+
+  async function pingServer(){
+    const r = await fetch(API + "/api/ping", {method:"GET", cache:"no-store"});
+    const j = await r.json().catch(()=>({ok:false}));
+    if(!j.ok) throw new Error("Сервер не отвечает");
+    return j;
+  }
+
+  async function api(path, data){
+    if(!ensureApi()) throw new Error("Нет сервера");
+    const r = await fetch(API + path, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(data||{})});
+    const j = await r.json().catch(()=>({ok:false,error:"Ошибка сервера"}));
+    if(!j.ok) throw new Error(j.error || "Ошибка");
+    return j;
+  }
+
+  async function createRoom(){
+    try{ const j = await api("/api/create_room", {user:me}); enterRoom(j.room); }
+    catch(e){ toast(e.message); }
+  }
+
+  async function joinRoom(roomId){
+    roomId = cleanRoom(roomId);
+    if(roomId.length !== 7){ toast("ID должен быть 7 цифр"); return; }
+    try{ const j = await api("/api/join_room", {room_id:roomId, user:me}); enterRoom(j.room); }
+    catch(e){ toast(e.message); }
+  }
+
+  function joinFromInput(){ joinRoom(document.getElementById("roomInput").value); }
+
+  function enterRoom(room){
+    currentRoom = room.id;
+    localStorage.setItem("spy_room_id", currentRoom);
+    show("room");
+    renderRoom(room);
+    startPoll();
+  }
+
+  function startPoll(){ stopPoll(); poll = setInterval(loadState, 1000); }
+  function stopPoll(){ if(poll){ clearInterval(poll); poll=null; } }
+
+  async function loadState(){
+    if(!currentRoom) return;
+    try{ const j = await api("/api/state", {room_id:currentRoom, user:me}); renderRoom(j.room); }
+    catch(e){ stopPoll(); localStorage.removeItem("spy_room_id"); currentRoom = ""; show("home"); toast(e.message); }
+  }
+
+  async function ready(){
+    try{ const j = await api("/api/ready", {room_id:currentRoom, user:me}); renderRoom(j.room); }
+    catch(e){ toast(e.message); }
+  }
+
+  async function nextRound(){
+    try{ const j = await api("/api/next_round", {room_id:currentRoom, user:me}); renderRoom(j.room); }
+    catch(e){ toast(e.message); }
+  }
+
+  async function leaveRoom(){
+    try{ await api("/api/leave", {room_id:currentRoom, user:me}); }catch(e){}
+    localStorage.removeItem("spy_room_id");
+    currentRoom = "";
+    stopPoll();
+    show("home");
+  }
+
+  function makeWebLink(roomId){
+    const url = new URL(location.href);
+    url.search = "";
+    url.hash = "";
+    url.searchParams.set("room", roomId);
+    if(API) url.searchParams.set("api", API);
+    return url.toString();
+  }
+
+  function shareLink(roomId){
+    let link = makeWebLink(roomId);
+    if(BOT_USERNAME && DEFAULT_API_URL){ link = `https://t.me/${BOT_USERNAME}?startapp=${roomId}`; }
+    const text = `Заходи в игру Шпион. ID комнаты: ${roomId}\n${link}`;
+    if(tg && tg.openTelegramLink && BOT_USERNAME && DEFAULT_API_URL){
+      tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Заходи в игру Шпион")}`);
+      return;
+    }
+    if(navigator.clipboard){ navigator.clipboard.writeText(text).then(()=>toast("Ссылка скопирована"),()=>toast(text)); }
+    else toast(text);
+  }
+
+  function playerLine(p, creatorId){
+    const isMe = String(p.id) === String(me.id);
+    const crown = String(p.id) === String(creatorId) ? " 👑" : "";
+    return `<div class="player"><div><div class="playerName">${esc(p.name)}${crown}${isMe?" · ты":""}</div><div class="playerMeta">ID: ${esc(p.id)}${p.username ? " · @"+esc(p.username) : ""}</div></div><div class="pill ${p.ready?'ready':'wait'}">${p.ready?'Готов':'Ждёт'}</div></div>`;
+  }
+
+  function renderRoom(room){
+    const key = JSON.stringify(room);
+    if(key === lastRendered) return;
+    lastRendered = key;
+    const panel = document.getElementById("roomPanel");
+    const mePlayer = room.players.find(p => String(p.id) === String(me.id));
+    const playersHtml = room.players.map(p=>playerLine(p, room.creator_id)).join("");
+    if(room.status === "waiting"){
+      const count = room.players.length;
+      const need = Math.max(0, room.min_players - count);
+      const timer = room.starts_in !== null && room.starts_in !== undefined ? fmt(room.starts_in) : "02:00";
+      const timerText = count >= room.min_players
+        ? `<div class="timer">${timer}</div><p class="muted" style="text-align:center">Старт по таймеру или когда все нажмут «Начать».</p>`
+        : `<div class="notice">Нужно ещё игроков: <b>${need}</b>. Таймер начнётся после 3 игроков.</div>`;
+      panel.innerHTML = `
+        <div class="studentTop"><div><div class="studentName">Комната</div><div class="bigId">${room.id}</div></div><div class="rank"><b>${count}</b><span>ИГРОКОВ</span></div></div>
+        ${timerText}
+        <div class="players">${playersHtml}</div>
+        <div class="actions">
+          <button class="good" onclick="ready()" ${mePlayer && mePlayer.ready ? "disabled" : ""}>${mePlayer && mePlayer.ready ? "Ты готов" : "Начать"}</button>
+          <button class="ghost" onclick="shareLink('${room.id}')">Поделиться ссылкой</button>
+          <button class="danger" onclick="leaveRoom()">Покинуть комнату</button>
+        </div>`;
+      return;
+    }
+    const isSpy = room.me && room.me.is_spy;
+    const word = room.me && room.me.word ? room.me.word : "---";
+    panel.innerHTML = `
+      <div class="studentTop"><div><div class="studentName">Раунд ${room.round}</div><div class="bigId">${room.id}</div></div><div class="rank"><b>${room.players.length}</b><span>В ИГРЕ</span></div></div>
+      <div class="wordCard">
+        <div class="role">${isSpy ? "ТВОЯ РОЛЬ" : "ТВОЁ СЛОВО"}</div>
+        <div class="word ${isSpy ? "spyWord" : ""}">${esc(word)}</div>
+      </div>
+      <div class="players">${playersHtml}</div>
+      <div class="actions">
+        <button onclick="nextRound()">Следующий раунд</button>
+        <button class="danger" onclick="leaveRoom()">Покинуть игру</button>
+      </div>`;
+  }
+
+  function fmt(s){ s=Math.max(0, Number(s)||0); const m=Math.floor(s/60); const sec=s%60; return String(m).padStart(2,"0")+":"+String(sec).padStart(2,"0"); }
+  function esc(s){ return String(s||"").replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c])); }
+
+  document.getElementById("roomInput").addEventListener("input", e=>{ e.target.value = cleanRoom(e.target.value); });
+  document.getElementById("roomInput").addEventListener("keydown", e=>{ if(e.key === "Enter") joinFromInput(); });
+  document.getElementById("apiInput").addEventListener("keydown", e=>{ if(e.key === "Enter") saveApiUrl(); });
+
+  initUser();
+  initApi();
+  const startRoom = getStartRoom();
+  if(!API){ show("setup"); }
+  else if(startRoom) joinRoom(startRoom);
+  else if(currentRoom) {
+    show("room");
+    document.getElementById("roomPanel").innerHTML = `<div class="notice">Возвращаю в комнату...</div>`;
+    loadState();
+    startPoll();
+  }
+</script>
+</body>
+</html>
